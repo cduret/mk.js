@@ -62,13 +62,6 @@ var zebra = function($q) {
     next_to([_(),_(),_(),'fox',_()],[_(),'chesterfields',_(),_(),_()], $q));
 };
 
-run(function($q) {
-  var $h = lvar('h');
-  return conj( zebra($h),
-               member_o([$q, _(), _(), 'zebra', _()], $h) );
-});
-
-
 assert_all('zebra', [
     {
       body : function() { return run(function($q) { return zebra($q); }); },
