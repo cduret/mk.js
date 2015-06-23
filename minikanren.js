@@ -284,10 +284,12 @@ var mk_test = function(proto, index) {
     return f.toString().replace(/[\n\r]/g, '');
   };
   var name = (proto.name !== undefined)?proto.name:'test_'+index;
+  var tests = { };
   if( typeof(proto.body) !== 'function' ) {
     console.error('test '+name+' discarded.. Must be lazy !');
     return null;
   }
+  /*
   if( proto.fresh !== undefined ) {// fresh
     var vars = proto.fresh.split(' ').reduce(function(code, v) { return (code.length===0)?'$'+v:code+', $'+v; }, '');
     var fresh_fn = 'return fresh("'+proto.fresh+'", function('+vars+') {';
@@ -296,6 +298,8 @@ var mk_test = function(proto, index) {
                     '('+to_string(proto.expected)+')('+vars+')':
                     Objects.to_string(proto.expected);
     var fresh_body = 'try { return assert_equals("'+name+'",'+test_fn+','+expected+'); } catch(e) { console.error("Exception raised during '+name+' -> "+e.stack); }';
+    console.log('with FRESH', new Function((fresh_fn+fresh_body+'})')));
+    console.log('with FRESH fresh_body', (fresh_body));
     return new Function(fresh_fn+fresh_body+'});');
   } else {
     var test_fn = '('+to_string(proto.body)+')()';
@@ -305,8 +309,63 @@ var mk_test = function(proto, index) {
     var test_body = 'try { return assert_equals("'+name+'", '+
                       test_fn+', '+
                       expected+'); } catch(e) { console.error("Exception raised during '+name+' -> "+e.stack); }';
+    console.log('sans fresh whole function', new Function((test_body)))
+    console.log('sans fresh test_body', (test_body));
     return new Function(test_body);
   }
+  */
+  function do_test ( ) {
+    var handler = function ( ) {
+      try {
+        return assert_equals(name, proto.body, proto.expected);
+      } catch (e) {
+        console.error("Exception raised during", name, "-> ", e.stack);
+      }
+    };
+    if (proto.fresh && proto.body && proto.body.call) {
+      return (function ( ) { return fresh(proto.fresh, handler); })
+    } else {
+      return handler;
+    }
+  }
+  /*
+  function anonymous() {
+    return fresh("x y",
+      function($x, $y) {
+        try {
+          return assert_equals("test_0",
+            (function ($x, $y) {
+              return empty_bindings.unify($x, $y);
+            })($x, $y),
+            (function ($x, $y) {
+              return new Bindings(mk_assoc($x.name,  $y));
+            })($x, $y)
+          );
+        } catch(e) {
+          console.error("Exception raised during test_0 -> "+e.stack);
+        }
+      })
+    }
+  */
+  /* case 2, no fresh variables
+  function anonymous() {
+    try {
+      return assert_equals("test_6",
+        (function () {
+          return run(function($q) {
+            return choice($q, [1,2,3]);
+          });
+        })(),
+        [1,2,3]
+      );
+    } catch(e) {
+      console.error("Exception raised during test_6 -> "+e.stack);
+    }
+  }
+  */
+
+  tests[name] = do_test;
+  return tests[name];
 };
 
 var assert_equals = function(test, result, expected) {
