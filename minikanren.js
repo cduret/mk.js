@@ -316,16 +316,21 @@ var mk_test = function(proto, index) {
   */
   function do_test ( ) {
     var handler = function ( ) {
+      var expected = proto.expected.apply
+          ? proto.expected
+          : (function ( ) { return proto.expected; })
+          ;
       try {
-        return assert_equals(name, proto.body, proto.expected);
+        return assert_equals(name, proto.body.apply(this, arguments), expected.apply(this, arguments));
       } catch (e) {
         console.error("Exception raised during", name, "-> ", e.stack);
       }
     };
     if (proto.fresh && proto.body && proto.body.call) {
-      return (function ( ) { return fresh(proto.fresh, handler); })
+      console.log('returning with fresh');
+      return (function ( ) { return fresh(proto.fresh, handler); }).apply(this, arguments);
     } else {
-      return handler;
+      return handler.apply(this, arguments);
     }
   }
   /*
