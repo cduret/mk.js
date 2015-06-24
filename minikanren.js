@@ -284,29 +284,32 @@ var mk_test = function(proto, index) {
     return f.toString().replace(/[\n\r]/g, '');
   };
   var name = (proto.name !== undefined)?proto.name:'test_'+index;
+  var tests = { };
   if( typeof(proto.body) !== 'function' ) {
     console.error('test '+name+' discarded.. Must be lazy !');
     return null;
   }
-  if( proto.fresh !== undefined ) {// fresh
-    var vars = proto.fresh.split(' ').reduce(function(code, v) { return (code.length===0)?'$'+v:code+', $'+v; }, '');
-    var fresh_fn = 'return fresh("'+proto.fresh+'", function('+vars+') {';
-    var test_fn = '('+to_string(proto.body)+')('+vars+')';
-    var expected = typeof(proto.expected) === 'function'?
-                    '('+to_string(proto.expected)+')('+vars+')':
-                    Objects.to_string(proto.expected);
-    var fresh_body = 'try { return assert_equals("'+name+'",'+test_fn+','+expected+'); } catch(e) { console.error("Exception raised during '+name+' -> "+e.stack); }';
-    return new Function(fresh_fn+fresh_body+'});');
-  } else {
-    var test_fn = '('+to_string(proto.body)+')()';
-    var expected = typeof(proto.expected) === 'function'? // expected must be lazy when new classes
-                    '('+to_string(proto.expected)+')()':  // are instanciated otherwise
-                    Objects.to_string(proto.expected);    // the instanceof does not work..
-    var test_body = 'try { return assert_equals("'+name+'", '+
-                      test_fn+', '+
-                      expected+'); } catch(e) { console.error("Exception raised during '+name+' -> "+e.stack); }';
-    return new Function(test_body);
+  function do_test ( ) {
+    var handler = function ( ) {
+      var expected = proto.expected.apply
+          ? proto.expected
+          : (function ( ) { return proto.expected; })
+          ;
+      try {
+        return assert_equals(name, proto.body.apply(this, arguments), expected.apply(this, arguments));
+      } catch (e) {
+        console.error("Exception raised during", name, "-> ", e.stack);
+      }
+    };
+    if (proto.fresh && proto.body && proto.body.call) {
+      return (function ( ) { return fresh(proto.fresh, handler); }).apply(this, arguments);
+    } else {
+      return handler.apply(this, arguments);
+    }
   }
+
+  tests[name] = do_test;
+  return tests[name];
 };
 
 var assert_equals = function(test, result, expected) {
